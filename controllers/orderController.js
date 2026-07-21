@@ -19,11 +19,12 @@ exports.createOrder = async (req, res) => {
 
     const orderSource = source || 'Website';
     const initialStatus = orderSource === 'POS' ? 'Completed' : 'Pending';
+    const initialPaymentStatus = orderSource === 'POS' ? 'Paid' : 'Unpaid';
 
     const [result] = await pool.query(
-      `INSERT INTO orders (customer_name, customer_phone, customer_email, customer_city, customer_address, total_amount, total_savings, items, source, status, is_read)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE)`,
-      [customer_name, customer_phone, customer_email || '', customer_city, customer_address, total_amount, total_savings, itemsJson, orderSource, initialStatus]
+      `INSERT INTO orders (customer_name, customer_phone, customer_email, customer_city, customer_address, total_amount, total_savings, items, source, status, is_read, payment_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE, ?)`,
+      [customer_name, customer_phone, customer_email || '', customer_city, customer_address, total_amount, total_savings, itemsJson, orderSource, initialStatus, initialPaymentStatus]
     );
 
     const orderId = result.insertId;
@@ -165,14 +166,24 @@ exports.updateOrderStatus = async (req, res) => {
     const order = orders[0];
     
     // Update the status
-    await pool.query('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
+    let query = 'UPDATE orders SET status = ? WHERE id = ?';
+    let queryParams = [status, id];
+    
+    if (status === 'Processing') {
+      query = 'UPDATE orders SET status = ?, payment_status = ? WHERE id = ?';
+      queryParams = [status, 'Paid', id];
+    }
+    
+    await pool.query(query, queryParams);
     
     // If status changed and customer provided an email, send status update email
     if (order.status !== status && order.customer_email) {
       console.log(`Status changed from ${order.status} to ${status}. Sending email to ${order.customer_email}...`);
       const statusHtml = getCustomerStatusUpdateTemplate(id, order.customer_name, status);
-      const updateSuccess = await sendEmail(order.customer_email, `Order Status Update - #${id}`, statusHtml);
-      console.log(`Status update email sent success: ${updateSuccess}`);
+      // Fire and forget so the API responds instantly
+      sendEmail(order.customer_email, `Order Status Update - #${id}`, statusHtml)
+        .then(updateSuccess => console.log(`Status update email sent success: ${updateSuccess}`))
+        .catch(err => console.error(`Error sending status update email:`, err));
     } else {
       console.log(`Not sending status email. Status changed: ${order.status !== status}. Customer Email: ${order.customer_email}`);
     }
@@ -181,6 +192,53 @@ exports.updateOrderStatus = async (req, res) => {
   } catch (error) {
     console.error('Error updating order status:', error);
     res.status(500).json({ error: 'Failed to update order status' });
+  }
+};
+
+exports.updatePaymentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { payment_status } = req.body;
+    
+    if (!payment_status) {
+      return res.status(400).json({ error: 'Payment status is required' });
+    }
+
+    const pool = getPool();
+    await pool.query('UPDATE orders SET payment_status = ? WHERE id = ?', [payment_status, id]);
+    
+    res.json({ success: true, message: 'Payment status updated' });
+  } catch (error) {
+    console.error('Error updating payment status:', error);
+    res.status(500).json({ error: 'Failed to update payment status' });
+  }
+};
+
+exports.updateOrderItems = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { items, total_amount, total_savings } = req.body;
+    
+    if (!items || total_amount === undefined || total_savings === undefined) {
+      return res.status(400).json({ error: 'Missing required order update fields' });
+    }
+
+    const pool = getPool();
+    const itemsJson = JSON.stringify(items);
+    
+    const [result] = await pool.query(
+      'UPDATE orders SET items = ?, total_amount = ?, total_savings = ? WHERE id = ?',
+      [itemsJson, total_amount, total_savings, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    res.json({ success: true, message: 'Order items updated successfully' });
+  } catch (error) {
+    console.error('Error updating order items:', error);
+    res.status(500).json({ error: 'Failed to update order items' });
   }
 };
 

@@ -19,13 +19,13 @@ const sendEmail = async (to, subject, html) => {
 
   const transporter = createTransporter();
   const mailOptions = {
-    from: `"Sri Dhakshina Crackers" <${process.env.EMAIL_USER}>`,
+    from: `"Vamsi Crackers" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html,
     attachments: [{
-      filename: 'sri_dhakshina_logo.jpg',
-      path: path.join(__dirname, 'sri_dhakshina_logo.jpg'),
+      filename: 'vamsi_crackers_logo.png',
+      path: path.join(__dirname, 'vamsi_crackers_logo.png'),
       cid: 'companylogo'
     }]
   };
@@ -47,10 +47,10 @@ const redColor = "#dc2626";
 const emailHeader = `
   <div style="background-color: ${primaryColor}; padding: 25px 20px; text-align: center; border-bottom: 4px solid ${accentColor};">
     <div style="margin-bottom: 12px;">
-      <img src="cid:companylogo" alt="Sri Dhakshina Crackers" style="width: 70px; height: 70px; object-fit: contain; border-radius: 12px; border: 2px solid ${accentColor}; background-color: #ffffff; padding: 2px; display: inline-block;" />
+      <img src="cid:companylogo" alt="Vamsi Crackers" style="width: 70px; height: 70px; object-fit: contain; border-radius: 12px; border: 2px solid ${accentColor}; background-color: #ffffff; padding: 2px; display: inline-block;" />
     </div>
     <h1 style="color: #ffffff; margin: 0; font-size: 26px; text-transform: uppercase; letter-spacing: 2px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
-      Sri Dhakshina <span style="color: ${accentColor};">Crackers</span>
+      Vamsi <span style="color: ${accentColor};">Crackers</span>
     </h1>
     <p style="color: ${accentColor}; margin: 5px 0 0 0; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">Sivakasi's Pride</p>
   </div>
@@ -58,7 +58,7 @@ const emailHeader = `
 
 const emailFooter = `
   <div style="background-color: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; margin-top: 30px;">
-    <p style="margin: 0;">Thank you for choosing Sri Dhakshina Crackers!</p>
+    <p style="margin: 0;">Thank you for choosing Vamsi Crackers!</p>
     <p style="margin: 5px 0 0 0;">123 Fireworks Street, Sivakasi, Tamil Nadu</p>
   </div>
 `;

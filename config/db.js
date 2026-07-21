@@ -110,6 +110,13 @@ async function initDb() {
     }
 
     try {
+      await pool.query(`ALTER TABLE orders ADD COLUMN payment_status VARCHAR(50) DEFAULT 'Unpaid';`);
+      console.log("Added 'payment_status' column to orders table.");
+    } catch (e) {
+      // Column already exists
+    }
+
+    try {
       await pool.query(`ALTER TABLE orders ADD COLUMN is_read BOOLEAN DEFAULT FALSE;`);
       console.log("Added 'is_read' column to orders table.");
     } catch (e) {

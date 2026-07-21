@@ -7,6 +7,8 @@ router.get('/', orderController.getOrders);
 router.put('/mark-read', orderController.markOrdersAsRead);
 router.put('/:id/mark-read', orderController.markSingleOrderAsRead);
 router.put('/:id/status', orderController.updateOrderStatus);
+router.put('/:id/payment-status', orderController.updatePaymentStatus);
+router.put('/:id/items', orderController.updateOrderItems);
 router.delete('/:id', orderController.deleteOrder);
 
 module.exports = router;
