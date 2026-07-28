@@ -4,7 +4,7 @@ exports.getProducts = async (req, res) => {
   try {
     const pool = getPool();
     const [rows] = await pool.query(`
-      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.image, p.categoryId, c.name as category
+      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.is_active, p.image, p.categoryId, c.name as category
       FROM products p
       JOIN categories c ON p.categoryId = c.id
       ORDER BY p.id ASC
@@ -42,7 +42,7 @@ exports.applyGlobalDiscount = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const pool = getPool();
-    const { name, price, originalPrice, discount, image, categoryId, applyDiscount } = req.body;
+    const { name, price, originalPrice, discount, image, categoryId, applyDiscount, isActive } = req.body;
 
     // Validation
     if (!name || name.trim() === "") {
@@ -75,14 +75,17 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ error: "A product with this name already exists." });
     }
 
+    const shouldBeActive = isActive !== undefined ? Boolean(isActive) : true;
+
     const [result] = await pool.query(
-      `INSERT INTO products (name, price, originalPrice, discount, apply_discount, image, categoryId) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (name, price, originalPrice, discount, apply_discount, is_active, image, categoryId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name.trim(),
         Math.round(Number(price)),
         Math.round(Number(originalPrice)),
         discountVal,
         shouldApplyDiscount,
+        shouldBeActive,
         image.trim(),
         Number(categoryId)
       ]
@@ -92,7 +95,7 @@ exports.createProduct = async (req, res) => {
 
     // Fetch the inserted product with its category details
     const [rows] = await pool.query(`
-      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.image, p.categoryId, c.name as category
+      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.is_active, p.image, p.categoryId, c.name as category
       FROM products p
       JOIN categories c ON p.categoryId = c.id
       WHERE p.id = ?
@@ -108,7 +111,7 @@ exports.updateProduct = async (req, res) => {
   try {
     const pool = getPool();
     const { id } = req.params;
-    const { name, price, originalPrice, discount, image, categoryId, applyDiscount } = req.body;
+    const { name, price, originalPrice, discount, image, categoryId, applyDiscount, isActive } = req.body;
 
     const productId = parseInt(id);
     if (isNaN(productId)) {
@@ -140,9 +143,11 @@ exports.updateProduct = async (req, res) => {
       return res.status(400).json({ error: "Valid category is required" });
     }
 
+    const shouldBeActive = isActive !== undefined ? Boolean(isActive) : true;
+
     const [result] = await pool.query(
       `UPDATE products 
-       SET name = ?, price = ?, originalPrice = ?, discount = ?, apply_discount = ?, image = ?, categoryId = ? 
+       SET name = ?, price = ?, originalPrice = ?, discount = ?, apply_discount = ?, is_active = ?, image = ?, categoryId = ? 
        WHERE id = ?`,
       [
         name.trim(),
@@ -150,6 +155,7 @@ exports.updateProduct = async (req, res) => {
         Math.round(Number(originalPrice)),
         discountVal,
         shouldApplyDiscount,
+        shouldBeActive,
         image.trim(),
         Number(categoryId),
         productId
@@ -162,7 +168,7 @@ exports.updateProduct = async (req, res) => {
 
     // Fetch the updated product with its category details
     const [rows] = await pool.query(`
-      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.image, p.categoryId, c.name as category
+      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.is_active, p.image, p.categoryId, c.name as category
       FROM products p
       JOIN categories c ON p.categoryId = c.id
       WHERE p.id = ?

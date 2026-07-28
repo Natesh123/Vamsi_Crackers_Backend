@@ -84,4 +84,97 @@ router.delete('/price-list', async (req, res) => {
   }
 });
 
+// Get Banner Text
+router.get('/banner-text/get', async (req, res) => {
+  try {
+    const pool = getPool();
+    const [rows] = await pool.query('SELECT value FROM settings WHERE `key` = ?', ['banner_text']);
+    if (rows.length > 0) {
+      return res.json({ text: rows[0].value });
+    }
+    return res.json({ text: "" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update Banner Text
+router.post('/banner-text/update', express.json(), async (req, res) => {
+  try {
+    const pool = getPool();
+    const { text } = req.body;
+    await pool.query(
+      'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+      ['banner_text', text, text]
+    );
+    res.json({ message: "Banner text updated successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Banner Images
+router.get('/banner-images/get', async (req, res) => {
+  try {
+    const pool = getPool();
+    const [rows] = await pool.query('SELECT value FROM settings WHERE `key` = ?', ['banner_images']);
+    if (rows.length > 0) {
+      try {
+        const images = JSON.parse(rows[0].value);
+        return res.json({ images });
+      } catch (e) {
+        return res.json({ images: [] });
+      }
+    }
+    return res.json({ images: [] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update Banner Images
+router.post('/banner-images/update', express.json(), async (req, res) => {
+  try {
+    const pool = getPool();
+    const { images } = req.body; // Expects an array of image objects/strings
+    const valueStr = JSON.stringify(images || []);
+    await pool.query(
+      'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+      ['banner_images', valueStr, valueStr]
+    );
+    res.json({ message: "Banner images updated successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Min Order Value
+router.get('/min-order-value/get', async (req, res) => {
+  try {
+    const pool = getPool();
+    const [rows] = await pool.query('SELECT value FROM settings WHERE `key` = ?', ['min_order_value']);
+    if (rows.length > 0) {
+      return res.json({ value: rows[0].value });
+    }
+    return res.json({ value: "0" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update Min Order Value
+router.post('/min-order-value/update', express.json(), async (req, res) => {
+  try {
+    const pool = getPool();
+    const { value } = req.body;
+    await pool.query(
+      'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?',
+      ['min_order_value', String(value), String(value)]
+    );
+    res.json({ message: "Min order value updated successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

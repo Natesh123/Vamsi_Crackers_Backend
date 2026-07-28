@@ -103,6 +103,13 @@ async function initDb() {
     }
 
     try {
+      await pool.query(`ALTER TABLE products ADD COLUMN is_active BOOLEAN DEFAULT TRUE;`);
+      console.log("Added 'is_active' column to products table.");
+    } catch (e) {
+      // Column already exists
+    }
+
+    try {
       await pool.query(`ALTER TABLE orders ADD COLUMN customer_email VARCHAR(255) DEFAULT '';`);
       console.log("Added 'customer_email' column to orders table.");
     } catch (e) {
