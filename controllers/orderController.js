@@ -40,16 +40,21 @@ exports.createOrder = async (req, res) => {
         total_amount,
         total_savings
       );
-      const adminSuccess = await sendEmail(adminEmail, `New Order Received - #${orderId}`, adminHtml);
-      if (adminSuccess) emailSent = true;
+      // Fire and forget
+      sendEmail(adminEmail, `New Order Received - #${orderId}`, adminHtml)
+        .then(adminSuccess => { if (adminSuccess) console.log('Admin email sent'); })
+        .catch(err => console.error('Admin email error:', err));
+      emailSent = true;
     }
 
     // 2. Send Branded Order Confirmation Email to Customer (if email is provided)
     if (customer_email) {
       console.log(`Attempting to send Customer Email to: ${customer_email}`);
       const customerHtml = getCustomerConfirmationTemplate(orderId, customer_name, items, total_amount, total_savings);
-      const custSuccess = await sendEmail(customer_email, `Order Confirmation - #${orderId}`, customerHtml);
-      console.log(`Customer email sent success status: ${custSuccess}`);
+      // Fire and forget
+      sendEmail(customer_email, `Order Confirmation - #${orderId}`, customerHtml)
+        .then(custSuccess => console.log(`Customer email sent success status: ${custSuccess}`))
+        .catch(err => console.error('Customer email error:', err));
     } else {
       console.log('No customer_email provided, skipping customer email step.');
     }
@@ -80,21 +85,56 @@ exports.createOrder = async (req, res) => {
         const itemsText = items.map(i => `🔸 ${i.name} (x${i.quantity}) - Rs. ${i.price * i.quantity}`).join('\n');
         const messageText = `🎉 NEW ORDER RECEIVED! 🎉\n\n📦 Order ID: #${orderId}\n👤 Customer: ${customer_name}\n📞 Phone: ${customer_phone}\n📍 City: ${customer_city}\n💰 Total Amount: Rs. ${total_amount}\n\n🛒 ITEMS:\n${itemsText}\n\nCheck Admin Panel for more details.`;
         
-        await fetch(`https://api.telegram.org/bot${teleToken}/sendMessage`, {
+        // Fire and forget
+        fetch(`https://api.telegram.org/bot${teleToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: teleChatId,
             text: messageText
           })
-        });
-        console.log(`Telegram notification sent successfully for order #${orderId}`);
+        })
+        .then(() => console.log(`Telegram notification sent successfully for order #${orderId}`))
+        .catch(teleErr => console.error('Failed to send Telegram notification:', teleErr.message));
+        
         telegramSent = true;
       } catch (teleErr) {
         console.error('Failed to send Telegram notification:', teleErr.message);
       }
     } else {
       console.warn('TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set in .env. Skipping Telegram notification.');
+    }
+
+    // Send Fast2SMS Notification to Admin
+    const fast2smsKey = process.env.FAST2SMS_API_KEY;
+    const adminMobile = process.env.ADMIN_MOBILE_NUMBER;
+    if (fast2smsKey && adminMobile) {
+      const paddedOrderId = '26' + String(orderId).slice(-2).padStart(2, '0');
+      const smsMessage = `Vamsi Crackers - New Order Placed!
+Order No: ${paddedOrderId}
+Name: ${customer_name}
+City: ${customer_city}
+Total: Rs.${total_amount}
+Check panel for items.`;
+      
+      const params = new URLSearchParams();
+      params.append("message", smsMessage);
+      params.append("language", "english");
+      params.append("route", "q");
+      params.append("numbers", adminMobile);
+      
+      // Fire and forget Fast2SMS
+      fetch("https://www.fast2sms.com/dev/bulkV2", {
+        method: "POST",
+        headers: {
+          "authorization": fast2smsKey,
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: params
+      })
+      .then(res => res.json())
+      .then(data => console.log("Fast2SMS Sent successfully:", data))
+      .catch(err => console.error("Fast2SMS Error:", err));
     }
 
     res.status(201).json({ success: true, message: 'Order created successfully', orderId: orderId, emailSent, telegramSent });
