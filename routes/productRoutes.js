@@ -9,5 +9,6 @@ router.post('/', productController.createProduct);
 router.put('/:id', productController.updateProduct);
 router.patch('/:id/toggle-discount', productController.toggleApplyDiscount);
 router.delete('/:id', productController.deleteProduct);
+router.post('/bulk-delete', productController.deleteMultipleProducts);
 
 module.exports = router;

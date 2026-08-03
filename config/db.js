@@ -110,6 +110,13 @@ async function initDb() {
     }
 
     try {
+      await pool.query(`ALTER TABLE products ADD COLUMN sort_order INT DEFAULT 0;`);
+      console.log("Added 'sort_order' column to products table.");
+    } catch (e) {
+      // Column already exists
+    }
+
+    try {
       await pool.query(`ALTER TABLE orders ADD COLUMN customer_email VARCHAR(255) DEFAULT '';`);
       console.log("Added 'customer_email' column to orders table.");
     } catch (e) {
@@ -174,8 +181,8 @@ async function initDb() {
         if (catId) {
           const discountVal = prod.originalPrice > 0 ? Math.round(((prod.originalPrice - prod.price) / prod.originalPrice) * 100) : 0;
           await pool.query(
-            "INSERT INTO products (name, price, originalPrice, discount, image, categoryId) VALUES (?, ?, ?, ?, ?, ?)",
-            [prod.name, prod.price, prod.originalPrice, discountVal, prod.image, catId]
+            "INSERT INTO products (name, price, originalPrice, discount, image, categoryId, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [prod.name, prod.price, prod.originalPrice, discountVal, prod.image, catId, 0]
           );
         }
       }

@@ -4,10 +4,10 @@ exports.getProducts = async (req, res) => {
   try {
     const pool = getPool();
     const [rows] = await pool.query(`
-      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.is_active, p.image, p.categoryId, c.name as category
+      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.is_active, p.image, p.categoryId, p.sort_order, c.name as category
       FROM products p
       JOIN categories c ON p.categoryId = c.id
-      ORDER BY p.id ASC
+      ORDER BY CASE WHEN p.sort_order = 0 THEN 1 ELSE 0 END ASC, p.sort_order ASC, p.id ASC
     `);
     res.json(rows);
   } catch (error) {
@@ -42,7 +42,7 @@ exports.applyGlobalDiscount = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const pool = getPool();
-    const { name, price, originalPrice, discount, image, categoryId, applyDiscount, isActive } = req.body;
+    const { name, price, originalPrice, discount, image, categoryId, applyDiscount, isActive, sortOrder } = req.body;
 
     // Validation
     if (!name || name.trim() === "") {
@@ -76,9 +76,10 @@ exports.createProduct = async (req, res) => {
     }
 
     const shouldBeActive = isActive !== undefined ? Boolean(isActive) : true;
+    const sortVal = sortOrder !== undefined ? parseInt(sortOrder) || 0 : 0;
 
     const [result] = await pool.query(
-      `INSERT INTO products (name, price, originalPrice, discount, apply_discount, is_active, image, categoryId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (name, price, originalPrice, discount, apply_discount, is_active, image, categoryId, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name.trim(),
         Math.round(Number(price)),
@@ -87,7 +88,8 @@ exports.createProduct = async (req, res) => {
         shouldApplyDiscount,
         shouldBeActive,
         image.trim(),
-        Number(categoryId)
+        Number(categoryId),
+        sortVal
       ]
     );
 
@@ -95,7 +97,7 @@ exports.createProduct = async (req, res) => {
 
     // Fetch the inserted product with its category details
     const [rows] = await pool.query(`
-      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.is_active, p.image, p.categoryId, c.name as category
+      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.is_active, p.image, p.categoryId, p.sort_order, c.name as category
       FROM products p
       JOIN categories c ON p.categoryId = c.id
       WHERE p.id = ?
@@ -111,7 +113,7 @@ exports.updateProduct = async (req, res) => {
   try {
     const pool = getPool();
     const { id } = req.params;
-    const { name, price, originalPrice, discount, image, categoryId, applyDiscount, isActive } = req.body;
+    const { name, price, originalPrice, discount, image, categoryId, applyDiscount, isActive, sortOrder } = req.body;
 
     const productId = parseInt(id);
     if (isNaN(productId)) {
@@ -144,10 +146,11 @@ exports.updateProduct = async (req, res) => {
     }
 
     const shouldBeActive = isActive !== undefined ? Boolean(isActive) : true;
+    const sortVal = sortOrder !== undefined ? parseInt(sortOrder) || 0 : 0;
 
     const [result] = await pool.query(
       `UPDATE products 
-       SET name = ?, price = ?, originalPrice = ?, discount = ?, apply_discount = ?, is_active = ?, image = ?, categoryId = ? 
+       SET name = ?, price = ?, originalPrice = ?, discount = ?, apply_discount = ?, is_active = ?, image = ?, categoryId = ?, sort_order = ?
        WHERE id = ?`,
       [
         name.trim(),
@@ -158,6 +161,7 @@ exports.updateProduct = async (req, res) => {
         shouldBeActive,
         image.trim(),
         Number(categoryId),
+        sortVal,
         productId
       ]
     );
@@ -168,7 +172,7 @@ exports.updateProduct = async (req, res) => {
 
     // Fetch the updated product with its category details
     const [rows] = await pool.query(`
-      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.is_active, p.image, p.categoryId, c.name as category
+      SELECT p.id, p.name, p.price, p.originalPrice, p.discount, p.apply_discount, p.is_active, p.image, p.categoryId, p.sort_order, c.name as category
       FROM products p
       JOIN categories c ON p.categoryId = c.id
       WHERE p.id = ?
@@ -197,6 +201,31 @@ exports.deleteProduct = async (req, res) => {
     }
 
     res.json({ message: "Product deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.deleteMultipleProducts = async (req, res) => {
+  try {
+    const pool = getPool();
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "An array of product IDs is required" });
+    }
+
+    // Ensure all IDs are valid numbers
+    const validIds = ids.map(id => parseInt(id)).filter(id => !isNaN(id));
+    if (validIds.length === 0) {
+      return res.status(400).json({ error: "Invalid product IDs provided" });
+    }
+
+    // Create placeholders
+    const placeholders = validIds.map(() => '?').join(', ');
+    const [result] = await pool.query(`DELETE FROM products WHERE id IN (${placeholders})`, validIds);
+
+    res.json({ message: `Successfully deleted ${result.affectedRows} products`, affectedRows: result.affectedRows });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -261,20 +290,43 @@ exports.bulkCreateProducts = async (req, res) => {
         const name = p["Product Name"] || p.name || p.Name;
         const catName = p["Category"] || p.category || p.Category;
         const originalPrice = parseFloat(p["Original Price"] || p.originalPrice || p.OriginalPrice);
-        const offerPrice = parseFloat(p["Offer Price"] || p.offerPrice || p.OfferPrice || p.price || p.Price);
         const image = p["Image Source"] || p.image || p.Image || "";
+        const sortOrder = parseInt(p["Sort Order"] || p.sort_order || p.sortOrder) || 0;
         
         let applyDiscountStr = String(p["Global Discount"] || p.applyDiscount || "Yes").toLowerCase();
         const applyDiscount = applyDiscountStr === "yes" || applyDiscountStr === "true" || applyDiscountStr === "1";
+
+        let statusStr = String(p["Status"] || p.isActive || p.is_active || "Active").toLowerCase();
+        const isActive = statusStr === "active" || statusStr === "true" || statusStr === "1" || statusStr === "yes";
+
+        // Handle Discount Percentage and Offer Price logic
+        let offerPriceRaw = p["Offer Price"] || p.offerPrice || p.OfferPrice || p.price || p.Price;
+        let discountPctRaw = p["Discount Percentage"] || p["Discount %"] || p.discount;
+        
+        let offerPrice;
+        let discountPct = 0;
+
+        if (offerPriceRaw !== undefined && offerPriceRaw !== "") {
+          offerPrice = parseFloat(offerPriceRaw);
+        }
+
+        if (discountPctRaw !== undefined && discountPctRaw !== "") {
+          discountPct = parseFloat(discountPctRaw);
+        }
+
+        // If Offer Price is not provided but Discount Percentage is provided, calculate Offer Price
+        if (offerPrice === undefined && discountPct > 0 && originalPrice > 0) {
+          offerPrice = originalPrice - (originalPrice * discountPct / 100);
+        } else if (offerPrice === undefined) {
+          offerPrice = originalPrice; // fallback
+        }
 
         if (!name || isNaN(originalPrice) || isNaN(offerPrice) || !catName) {
           throw new Error("Missing or invalid required fields (Name, Category, Original Price, Offer Price)");
         }
 
         const trimmedName = name.trim();
-        if (productNameSet.has(trimmedName.toLowerCase())) {
-          throw new Error(`Product '${trimmedName}' already exists.`);
-        }
+        const isExisting = productNameSet.has(trimmedName.toLowerCase());
         
         let categoryId;
         const cleanCatName = catName.trim();
@@ -288,23 +340,48 @@ exports.bulkCreateProducts = async (req, res) => {
         }
 
         let discountVal = 0;
-        if (applyDiscount && originalPrice > 0 && originalPrice >= offerPrice) {
+        if (discountPct > 0) {
+          discountVal = Math.round(discountPct);
+        } else if (applyDiscount && originalPrice > 0 && originalPrice >= offerPrice) {
           discountVal = Math.round(((originalPrice - offerPrice) / originalPrice) * 100);
         }
 
-        await pool.query(
-          `INSERT INTO products (name, price, originalPrice, discount, apply_discount, image, categoryId) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            name.trim(),
-            Math.round(offerPrice),
-            Math.round(originalPrice),
-            discountVal,
-            applyDiscount,
-            image.trim(),
-            categoryId
-          ]
-        );
-        productNameSet.add(trimmedName.toLowerCase()); // prevent duplicate in same file
+        if (isExisting) {
+          // Update existing product
+          await pool.query(
+            `UPDATE products SET price = ?, originalPrice = ?, discount = ?, apply_discount = ?, is_active = ?, image = IF(? = '', image, ?), categoryId = ?, sort_order = ? WHERE LOWER(name) = ?`,
+            [
+              Math.round(offerPrice),
+              Math.round(originalPrice),
+              discountVal,
+              applyDiscount,
+              isActive,
+              image.trim(),
+              image.trim(),
+              categoryId,
+              sortOrder,
+              trimmedName.toLowerCase()
+            ]
+          );
+        } else {
+          // Insert new product
+          await pool.query(
+            `INSERT INTO products (name, price, originalPrice, discount, apply_discount, is_active, image, categoryId, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              trimmedName,
+              Math.round(offerPrice),
+              Math.round(originalPrice),
+              discountVal,
+              applyDiscount,
+              isActive,
+              image.trim(),
+              categoryId,
+              sortOrder
+            ]
+          );
+          productNameSet.add(trimmedName.toLowerCase()); // prevent duplicate in same file
+        }
+        
         addedCount++;
       } catch (err) {
         errorCount++;
@@ -314,7 +391,7 @@ exports.bulkCreateProducts = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Bulk upload complete. Added ${addedCount} products. Failed: ${errorCount}`,
+      message: `Bulk upload complete. Processed ${addedCount} products. Failed: ${errorCount}`,
       addedCount,
       errorCount,
       errors
