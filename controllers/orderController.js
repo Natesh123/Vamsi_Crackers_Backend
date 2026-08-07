@@ -109,7 +109,7 @@ exports.createOrder = async (req, res) => {
     const fast2smsKey = process.env.FAST2SMS_API_KEY;
     const adminMobile = process.env.ADMIN_MOBILE_NUMBER;
     if (fast2smsKey && adminMobile) {
-      const paddedOrderId = '26' + String(orderId).slice(-2).padStart(2, '0');
+      const paddedOrderId = String(orderId).padStart(4, '0');
       const smsMessage = `Vamsi Crackers - New Order Placed!
 Order No: ${paddedOrderId}
 Name: ${customer_name}
