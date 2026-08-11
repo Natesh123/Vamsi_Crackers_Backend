@@ -62,9 +62,7 @@ exports.createProduct = async (req, res) => {
     } else if (isNaN(discountVal) || discountVal < 0 || discountVal > 100) {
       return res.status(400).json({ error: "Discount must be between 0 and 100" });
     }
-    if (!image || image.trim() === "") {
-      return res.status(400).json({ error: "Product image is required" });
-    }
+
     if (!categoryId || isNaN(Number(categoryId))) {
       return res.status(400).json({ error: "Valid category is required" });
     }
@@ -87,7 +85,7 @@ exports.createProduct = async (req, res) => {
         discountVal,
         shouldApplyDiscount,
         shouldBeActive,
-        image.trim(),
+        (image || "").trim(),
         Number(categoryId),
         sortVal
       ]
@@ -138,9 +136,7 @@ exports.updateProduct = async (req, res) => {
     } else if (isNaN(discountVal) || discountVal < 0 || discountVal > 100) {
       return res.status(400).json({ error: "Discount must be between 0 and 100" });
     }
-    if (!image || image.trim() === "") {
-      return res.status(400).json({ error: "Product image is required" });
-    }
+
     if (!categoryId || isNaN(Number(categoryId))) {
       return res.status(400).json({ error: "Valid category is required" });
     }
@@ -159,7 +155,7 @@ exports.updateProduct = async (req, res) => {
         discountVal,
         shouldApplyDiscount,
         shouldBeActive,
-        image.trim(),
+        (image || "").trim(),
         Number(categoryId),
         sortVal,
         productId
