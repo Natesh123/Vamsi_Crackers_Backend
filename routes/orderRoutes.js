@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/orderController');
-
-router.post('/', orderController.createOrder);
-router.get('/', orderController.getOrders);
-router.put('/mark-read', orderController.markOrdersAsRead);
-router.put('/:id/mark-read', orderController.markSingleOrderAsRead);
-router.put('/:id/status', orderController.updateOrderStatus);
-router.put('/:id/payment-status', orderController.updatePaymentStatus);
-router.put('/:id/items', orderController.updateOrderItems);
-router.delete('/:id', orderController.deleteOrder);
+const verifyToken = require('../middleware/authMiddleware');
+router.post('/', orderController.createOrder); // Public route for customers placing orders
+router.get('/', verifyToken, orderController.getOrders);
+router.put('/mark-read', verifyToken, orderController.markOrdersAsRead);
+router.put('/:id/mark-read', verifyToken, orderController.markSingleOrderAsRead);
+router.put('/:id/status', verifyToken, orderController.updateOrderStatus);
+router.put('/:id/payment-status', verifyToken, orderController.updatePaymentStatus);
+router.put('/:id/items', verifyToken, orderController.updateOrderItems);
+router.delete('/:id', verifyToken, orderController.deleteOrder);
 
 module.exports = router;

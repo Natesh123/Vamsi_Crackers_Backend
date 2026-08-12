@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-
+const verifyToken = require('../middleware/authMiddleware');
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -23,10 +23,19 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
+  fileFilter: function (req, file, cb) {
+    const filetypes = /jpeg|jpg|png|gif|webp/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error("Error: Only image files are allowed!"));
+  },
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
-router.post('/', upload.single('file'), (req, res) => {
+router.post('/', verifyToken, upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });

@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { getPool } = require('../config/db');
+const verifyToken = require('../middleware/authMiddleware');
 
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, '../uploads');
@@ -51,7 +52,7 @@ router.get('/price-list', async (req, res) => {
 });
 
 // Upload Price List PDF
-router.post('/price-list/upload', upload.single('file'), async (req, res) => {
+router.post('/price-list/upload', verifyToken, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No PDF file uploaded" });
@@ -74,7 +75,7 @@ router.post('/price-list/upload', upload.single('file'), async (req, res) => {
 });
 
 // Delete Price List PDF
-router.delete('/price-list', async (req, res) => {
+router.delete('/price-list', verifyToken, async (req, res) => {
   try {
     const pool = getPool();
     await pool.query('DELETE FROM settings WHERE `key` = ?', ['price_list_url']);
@@ -99,7 +100,7 @@ router.get('/banner-text/get', async (req, res) => {
 });
 
 // Update Banner Text
-router.post('/banner-text/update', express.json(), async (req, res) => {
+router.post('/banner-text/update', verifyToken, express.json(), async (req, res) => {
   try {
     const pool = getPool();
     const { text } = req.body;
@@ -133,7 +134,7 @@ router.get('/banner-images/get', async (req, res) => {
 });
 
 // Update Banner Images
-router.post('/banner-images/update', express.json(), async (req, res) => {
+router.post('/banner-images/update', verifyToken, express.json(), async (req, res) => {
   try {
     const pool = getPool();
     const { images } = req.body; // Expects an array of image objects/strings
@@ -163,7 +164,7 @@ router.get('/min-order-value/get', async (req, res) => {
 });
 
 // Update Min Order Value
-router.post('/min-order-value/update', express.json(), async (req, res) => {
+router.post('/min-order-value/update', verifyToken, express.json(), async (req, res) => {
   try {
     const pool = getPool();
     const { value } = req.body;
