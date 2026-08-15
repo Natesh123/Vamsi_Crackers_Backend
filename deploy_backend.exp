@@ -1,0 +1,60 @@
+#!/usr/bin/expect -f
+
+set timeout -1
+set password "Prasath@1990"
+set host "103.191.208.98"
+set user "root"
+set dir "/var/www/vamsicrackers/backend"
+set zip "vamsi_backend_deploy.zip"
+
+# Create directory if it doesn't exist just in case
+spawn ssh $user@$host "mkdir -p $dir"
+expect {
+    "yes/no" {
+        send "yes\r"
+        exp_continue
+    }
+    "password:" {
+        send "$password\r"
+    }
+}
+expect eof
+
+# SCP the file
+spawn scp $zip $user@$host:$dir/
+expect {
+    "yes/no" {
+        send "yes\r"
+        exp_continue
+    }
+    "password:" {
+        send "$password\r"
+    }
+}
+expect eof
+
+# SSH and run commands
+spawn ssh $user@$host
+expect {
+    "yes/no" {
+        send "yes\r"
+        exp_continue
+    }
+    "password:" {
+        send "$password\r"
+    }
+}
+
+expect "#"
+send "cd $dir\r"
+expect "#"
+send "unzip -o $zip\r"
+expect "#"
+send "npm install --production\r"
+expect "#"
+send "pm2 restart Backend || pm2 start server.js --name \"Backend\"\r"
+expect "#"
+send "pm2 save\r"
+expect "#"
+send "exit\r"
+expect eof

@@ -18,8 +18,8 @@ exports.createOrder = async (req, res) => {
     const itemsJson = JSON.stringify(items);
 
     const orderSource = source || 'Website';
-    const initialStatus = orderSource === 'POS' ? 'Completed' : 'Pending';
-    const initialPaymentStatus = orderSource === 'POS' ? 'Paid' : 'Unpaid';
+    const initialStatus = req.body.status || 'Pending';
+    const initialPaymentStatus = req.body.payment_status || 'Unpaid';
 
     const [result] = await pool.query(
       `INSERT INTO orders (customer_name, customer_phone, customer_email, customer_city, customer_address, total_amount, total_savings, items, source, status, is_read, payment_status)
