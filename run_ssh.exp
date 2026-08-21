@@ -1,0 +1,11 @@
+#!/usr/bin/expect -f
+set timeout 10
+set cmd [lindex $argv 0]
+spawn ssh -o StrictHostKeyChecking=no root@103.191.208.98 $cmd
+expect {
+    "password:" {
+        send "Prasath@1990\r"
+        exp_continue
+    }
+    eof
+}
